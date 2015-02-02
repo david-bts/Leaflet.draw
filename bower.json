@@ -6,12 +6,12 @@
     "dist/leaflet.draw-src.js",
     "dist/leaflet.draw.css",
     "dist/images/spritesheet-2x.png",
-    "dist/images/spritesheet.png"
+    "dist/images/spritesheet.png",
+    "src/*"
   ],
   "license": "MIT",
   "ignore": [
     "**/.*",
-    "src",
     "doc",
     "examples",
     "test",
