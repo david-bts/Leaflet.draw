@@ -16,6 +16,10 @@ L.Draw.Polyline = L.Draw.Feature.extend({
 			iconSize: new L.Point(8, 8),
 			className: 'leaflet-div-icon leaflet-editing-icon'
 		}),
+		touchIcon: new L.DivIcon({
+			iconSize: new L.Point(20, 20),
+			className: 'leaflet-div-icon leaflet-editing-icon leaflet-touch-icon'
+		}),
 		guidelineDistance: 20,
 		maxGuideLineLength: 4000,
 		shapeOptions: {
@@ -32,6 +36,11 @@ L.Draw.Polyline = L.Draw.Feature.extend({
 	},
 
 	initialize: function (map, options) {
+		// if touch, switch to touch icon
+		if (L.Browser.touch){ 
+			this.options.icon = this.options.touchIcon;
+		}
+
 		// Need to set this here to ensure the correct message is used.
 		this.options.drawError.message = L.drawLocal.draw.handlers.polyline.error;
 
@@ -55,7 +64,7 @@ L.Draw.Polyline = L.Draw.Feature.extend({
 			this._map.addLayer(this._markerGroup);
 
 			this._poly = new L.Polyline([], this.options.shapeOptions);
-
+			
 			this._tooltip.updateContent(this._getTooltipText());
 
 			// Make a transparent marker that will used to catch click events. These click
@@ -82,7 +91,8 @@ L.Draw.Polyline = L.Draw.Feature.extend({
 			this._map
 				.on('mousemove', this._onMouseMove, this)
 				.on('mouseup', this._onMouseUp, this)
-				.on('zoomend', this._onZoomEnd, this);
+				.on('zoomlevelschange', this._onZoomEnd, this)
+				.on('click', this._onTouch, this);
 		}
 	},
 
@@ -112,7 +122,8 @@ L.Draw.Polyline = L.Draw.Feature.extend({
 
 		this._map
 			.off('mousemove', this._onMouseMove, this)
-			.off('zoomend', this._onZoomEnd, this);
+			.off('zoomend', this._onZoomEnd, this)
+			.off('click', this._onTouch, this);
 	},
 
 	deleteLastVertex: function () {
@@ -153,6 +164,19 @@ L.Draw.Polyline = L.Draw.Feature.extend({
 		}
 
 		this._vertexChanged(latlng, true);
+	},
+
+	completeShape: function(){
+		if (this._markers.length <= 1) {
+			return;
+		}
+
+		this._fireCreatedEvent();
+		this.disable();
+
+		if (this.options.repeatMode) {
+			this.enable();
+		}
 	},
 
 	_finishShape: function () {
@@ -199,16 +223,6 @@ L.Draw.Polyline = L.Draw.Feature.extend({
 		L.DomEvent.preventDefault(e.originalEvent);
 	},
 
-	_vertexChanged: function (latlng, added) {
-		this._updateFinishHandler();
-
-		this._updateRunningMeasure(latlng, added);
-
-		this._clearGuides();
-
-		this._updateTooltip();
-	},
-
 	_onMouseDown: function (e) {
 		var originalEvent = e.originalEvent;
 		this._mouseDownOrigin = L.point(originalEvent.clientX, originalEvent.clientY);
@@ -225,6 +239,24 @@ L.Draw.Polyline = L.Draw.Feature.extend({
 			}
 		}
 		this._mouseDownOrigin = null;
+	},
+
+	_onTouch: function (e) {
+		// #TODO: use touchstart and touchend vs using click(touch start & end).
+		if (L.Browser.touch){ // #TODO: get rid of this once leaflet fixes their click/touch.
+			this._onMouseDown(e);
+			this._onMouseUp(e);
+		}
+	},
+	
+	_vertexChanged: function (latlng, added) {
+		this._updateFinishHandler();
+
+		this._updateRunningMeasure(latlng, added);
+
+		this._clearGuides();
+
+		this._updateTooltip();
 	},
 
 	_updateFinishHandler: function () {
